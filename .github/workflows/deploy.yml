@@ -6,10 +6,10 @@ on:
   workflow_dispatch:
 
 env:
-  AWS_REGION: us-east-2
-  ECR_REPOSITORY: afm-backend
-  ECS_CLUSTER: afm-cluster
-  ECS_SERVICE: afm-backend
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-2' }}
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'afm-backend' }}
+  ECS_CLUSTER: ${{ vars.ECS_CLUSTER || 'afm-cluster' }}
+  ECS_SERVICE: ${{ vars.ECS_SERVICE || 'afm-backend' }}
 
 jobs:
   deploy:
@@ -47,6 +47,19 @@ jobs:
 
       - name: Update ECS service
         run: |
+          SERVICE_STATUS=$(aws ecs describe-services \
+            --cluster "${{ env.ECS_CLUSTER }}" \
+            --services "${{ env.ECS_SERVICE }}" \
+            --query 'services[0].status' \
+            --output text)
+
+          if [ "$SERVICE_STATUS" != "ACTIVE" ] && [ "$SERVICE_STATUS" != "DRAINING" ]; then
+            echo "ECS service '${{ env.ECS_SERVICE }}' was not found in cluster '${{ env.ECS_CLUSTER }}' (region: '${{ env.AWS_REGION }}')."
+            echo "Available services in this cluster:"
+            aws ecs list-services --cluster "${{ env.ECS_CLUSTER }}" --output table || true
+            exit 1
+          fi
+
           aws ecs update-service \
             --cluster ${{ env.ECS_CLUSTER }} \
             --service ${{ env.ECS_SERVICE }} \
