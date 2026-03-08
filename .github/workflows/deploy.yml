@@ -56,7 +56,10 @@ jobs:
           if [ "$SERVICE_STATUS" != "ACTIVE" ] && [ "$SERVICE_STATUS" != "DRAINING" ]; then
             echo "ECS service '${{ env.ECS_SERVICE }}' was not found in cluster '${{ env.ECS_CLUSTER }}' (region: '${{ env.AWS_REGION }}')."
             echo "Available services in this cluster:"
-            aws ecs list-services --cluster "${{ env.ECS_CLUSTER }}" --output table || true
+            if ! aws ecs list-services --cluster "${{ env.ECS_CLUSTER }}" --output table; then
+              echo "Could not list services (missing permission 'ecs:ListServices')."
+              echo "Grant ecs:ListServices for better diagnostics or set correct ECS vars: ECS_CLUSTER and ECS_SERVICE."
+            fi
             exit 1
           fi
 
